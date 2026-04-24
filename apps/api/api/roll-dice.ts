@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { roomId, hostId, controlledResult } = req.body as RollDiceRequest;
 
-    const raw = await redis.get<string>(`room:${roomId}`);
+    const raw = await redis.get<string>(`room:${roomId.toUpperCase()}`);
     if (!raw) {
       return res.status(404).json({ success: false, error: 'Room not found' });
     }
@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Lock bets
     room.status = 'ROLLING';
-    await redis.set(`room:${room.id}`, JSON.stringify(room), { ex: 86400 });
+    await redis.set(`room:${room.id.toUpperCase()}`, JSON.stringify(room), { ex: 86400 });
 
     // Broadcast bet locked
     await broadcast(room.id, 'bet_locked', { status: 'ROLLING' });
@@ -81,11 +81,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     room.currentRound.payouts = netProfits;
 
+    // Accumulate lifetime win/loss totals on each player so the room can show
+    // a stable scoreboard across rounds.
+    for (const [playerId, profit] of Object.entries(netProfits)) {
+      const player = room.players[playerId];
+      if (!player) continue;
+
+      room.players[playerId] = {
+        ...player,
+        totalWon: (player.totalWon ?? 0) + (profit > 0 ? profit : 0),
+        totalLost: (player.totalLost ?? 0) + (profit < 0 ? Math.abs(profit) : 0),
+      };
+    }
+
     // Apply payouts to players using balanceUpdates
     const updatedRoom = applyPayouts(room, balanceUpdates);
     updatedRoom.status = 'REVEAL';
 
-    await redis.set(`room:${updatedRoom.id}`, JSON.stringify(updatedRoom), { ex: 86400 });
+    await redis.set(`room:${updatedRoom.id.toUpperCase()}`, JSON.stringify(updatedRoom), { ex: 86400 });
 
     // Broadcast bowl_lifting first — triggers lift animation on all clients
     await broadcast(updatedRoom.id, 'bowl_lifting', { status: 'ROLLING' });
@@ -99,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // After reveal, send final round results
     updatedRoom.status = 'RESULT';
-    await redis.set(`room:${updatedRoom.id}`, JSON.stringify(updatedRoom), { ex: 86400 });
+    await redis.set(`room:${updatedRoom.id.toUpperCase()}`, JSON.stringify(updatedRoom), { ex: 86400 });
 
     await broadcast(updatedRoom.id, 'round_ended', {
       payouts: netProfits,

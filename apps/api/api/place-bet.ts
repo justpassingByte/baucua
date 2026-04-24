@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: 'Invalid bet amount' });
     }
 
-    const raw = await redis.get<string>(`room:${roomId}`);
+    const raw = await redis.get<string>(`room:${roomId.toUpperCase()}`);
     if (!raw) {
       console.log('[place-bet] REJECTED: Room not found', roomId);
       return res.status(404).json({ success: false, error: 'Room not found' });
@@ -101,6 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Deduct chips immediately
     player.chips -= amount;
+    player.totalBet = (player.totalBet ?? 0) + amount;
 
     // Add bet
     room.currentRound.bets.push({
@@ -112,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('[place-bet] Bets count after push:', room.currentRound.bets.length);
 
-    await redis.set(`room:${room.id}`, JSON.stringify(room), { ex: 86400 });
+    await redis.set(`room:${room.id.toUpperCase()}`, JSON.stringify(room), { ex: 86400 });
     console.log('[place-bet] ✅ Saved to Redis');
 
     // Broadcast bet update and updated players

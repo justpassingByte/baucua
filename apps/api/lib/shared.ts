@@ -25,6 +25,9 @@ export interface Player {
   chips: number;
   isHost: boolean;
   connected: boolean;
+  totalBet?: number;
+  totalWon?: number;
+  totalLost?: number;
 }
 
 export interface Bet {
@@ -72,6 +75,7 @@ export interface CreateRoomRequest {
 export interface JoinRoomRequest {
   roomId: string;
   playerName: string;
+  playerId?: string;
 }
 
 export interface PlaceBetRequest {

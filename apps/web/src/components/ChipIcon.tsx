@@ -35,11 +35,11 @@ export function ChipIcon({ color, size = 22, value, className = '' }: ChipIconPr
 }
 
 // Small inline chip badge for chip counts
-export function ChipBadge({ amount, color = '#F6AD55', size = 16 }: { amount: number; color?: string; size?: number }) {
+export function ChipBadge({ amount, color = '#F6AD55', size = 14 }: { amount: number; color?: string; size?: number }) {
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 shadow-[0_6px_14px_rgba(0,0,0,0.16)]">
       <ChipIcon color={color} size={size} />
-      <span>{amount}</span>
+      <span className="font-heading font-black leading-none text-white/90">{amount}</span>
     </span>
   );
 }

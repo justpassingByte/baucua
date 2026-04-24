@@ -11,6 +11,9 @@ interface Player {
   chips: number;
   isHost: boolean;
   connected: boolean;
+  totalBet?: number;
+  totalWon?: number;
+  totalLost?: number;
 }
 
 interface Bet {
@@ -51,7 +54,6 @@ interface GameState {
 
   // UI State
   selectedChip: number;
-  myBets: Record<Symbol, number>;
   isRolling: boolean;
   showResult: boolean;
   lastPayouts: Record<string, number> | null;
@@ -63,9 +65,6 @@ interface GameState {
   setRoom: (room: Room) => void;
   setRoomId: (roomId: string) => void;
   setSelectedChip: (chip: number) => void;
-  addMyBet: (symbol: Symbol, amount: number) => void;
-  removeMyBet: (symbol: Symbol, amount: number) => void;
-  clearMyBets: () => void;
   setIsRolling: (rolling: boolean) => void;
   setShowResult: (show: boolean) => void;
   setDiceResult: (result: [Symbol, Symbol, Symbol] | null) => void;
@@ -78,10 +77,6 @@ interface GameState {
   reset: () => void;
 }
 
-const initialMyBets: Record<Symbol, number> = {
-  BAU: 0, CUA: 0, TOM: 0, CA: 0, GA: 0, NAI: 0,
-};
-
 export const useGameStore = create<GameState>((set) => ({
   playerId: null,
   playerName: null,
@@ -89,7 +84,6 @@ export const useGameStore = create<GameState>((set) => ({
   room: null,
   roomId: null,
   selectedChip: 10,
-  myBets: { ...initialMyBets },
   isRolling: false,
   showResult: false,
   lastPayouts: null,
@@ -107,25 +101,6 @@ export const useGameStore = create<GameState>((set) => ({
 
   setSelectedChip: (chip) =>
     set({ selectedChip: chip }),
-
-  addMyBet: (symbol, amount) =>
-    set((state) => ({
-      myBets: {
-        ...state.myBets,
-        [symbol]: (state.myBets[symbol] || 0) + amount,
-      },
-    })),
-
-  removeMyBet: (symbol, amount) =>
-    set((state) => ({
-      myBets: {
-        ...state.myBets,
-        [symbol]: Math.max(0, (state.myBets[symbol] || 0) - amount),
-      },
-    })),
-
-  clearMyBets: () =>
-    set({ myBets: { ...initialMyBets } }),
 
   setIsRolling: (rolling) =>
     set({ isRolling: rolling }),
@@ -174,13 +149,12 @@ export const useGameStore = create<GameState>((set) => ({
       playerName: null,
       isHost: false,
       room: null,
-      roomId: null,
-      selectedChip: 10,
-      myBets: { ...initialMyBets },
-      isRolling: false,
-      showResult: false,
-      lastPayouts: null,
-      diceResult: null,
+    roomId: null,
+    selectedChip: 10,
+    isRolling: false,
+    showResult: false,
+    lastPayouts: null,
+    diceResult: null,
       devControlled: null,
     }),
 }));

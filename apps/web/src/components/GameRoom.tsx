@@ -7,10 +7,11 @@ import { api } from '../lib/api';
 import BettingGrid from './BettingGrid';
 import ChipSelector from './ChipSelector';
 import DiceArea from './DiceArea';
+import BackgroundMusic from './BackgroundMusic';
 import PlayerList from './PlayerList';
-import Timer from './Timer';
 import HostControls from './HostControls';
 import ResultOverlay from './ResultOverlay';
+import { playSfx } from '../lib/sfx';
 import type { Bet, Player, Symbol, RoundData } from '../store/gameStore';
 
 export default function GameRoom() {
@@ -20,6 +21,7 @@ export default function GameRoom() {
 
   // Bowl lift state synced via Pusher for all clients
   const [isBowlLifting, setIsBowlLifting] = useState(false);
+  const [betNotice, setBetNotice] = useState<string | null>(null);
 
   // ─── Load room on mount ──────────────────────────────
   useEffect(() => {
@@ -82,12 +84,12 @@ export default function GameRoom() {
     channel.bind('round_started', (data: { round: RoundData; roundNumber: number; status: string }) => {
       store.updateRound(data.round);
       store.updateStatus('BETTING');
-      store.clearMyBets();
       store.setDiceResult(null);
       store.setShowResult(false);
       store.setIsRolling(false);
       store.setLastPayouts(null);
       setIsBowlLifting(false);
+      setBetNotice(null);
     });
 
     channel.bind('bet_updated', (data: { bets: Bet[]; players?: Record<string, Player> }) => {
@@ -103,6 +105,7 @@ export default function GameRoom() {
       store.setIsRolling(true);
       store.updateStatus('ROLLING');
       setIsBowlLifting(false);
+      playSfx('rolling', 0.35);
     });
 
     // New event: bowl is being lifted by host — animate for all players
@@ -115,6 +118,7 @@ export default function GameRoom() {
         store.setDiceResult(data.diceResult);
         store.setIsRolling(false);
         store.updateStatus('REVEAL');
+        playSfx('reveal', 0.38);
       }, 800); // shorter delay since bowl lift already shows anticipation
     });
 
@@ -133,6 +137,14 @@ export default function GameRoom() {
         store.updateStatus('RESULT');
         store.setShowResult(true);
         setIsBowlLifting(false);
+        setBetNotice(null);
+
+        const myPayout = store.playerId ? data.payouts[store.playerId] ?? 0 : 0;
+        const myPlayer = store.playerId ? data.players[store.playerId] : null;
+        const hadBets = !!myPlayer && (myPlayer.totalBet ?? 0) > 0;
+        if (hadBets) {
+          playSfx(myPayout > 0 ? 'win' : 'lose', 0.4);
+        }
       }, 3500);
     });
 
@@ -200,43 +212,56 @@ export default function GameRoom() {
       </header>
 
       {/* Main game area */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 max-w-7xl mx-auto w-full">
-        {/* Left: Game Board */}
-        <div className="flex-1 flex flex-col gap-4">
-          {/* Timer + Dice Area */}
-          <div className="flex flex-col items-center gap-4 glass-card py-6 px-4">
-            {store.room.currentRound && (
-              <Timer endsAt={store.room.currentRound.endsAt} active={isBetting} />
-            )}
-            <DiceArea
-              onLiftBowl={store.isHost ? handleLiftBowl : undefined}
-              isBowlLifting={isBowlLifting}
-            />
+      <div className="flex-1 w-full max-w-[1600px] mx-auto p-4 lg:p-6">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          {/* Left: main board */}
+          <section className="glass-card relative min-w-0 overflow-hidden p-4 sm:p-5 lg:p-6">
+            <div className="space-y-4">
+              <div className="rounded-[2rem] border border-white/10 bg-[#f4efe4]/5 p-3 sm:p-4 lg:p-6">
+                <DiceArea
+                  onLiftBowl={store.isHost ? handleLiftBowl : undefined}
+                  isBowlLifting={isBowlLifting}
+                />
+              </div>
+
+              {store.isHost && <HostControls />}
+
+              {/* Chip Selector (only during betting) */}
+              <AnimatePresence>
+                {isBetting && !store.isHost && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                  >
+                    <ChipSelector />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {betNotice && (
+                  <motion.div
+                    className="rounded-xl border border-white/10 bg-red-500/10 px-4 py-2 text-xs font-body text-red-200 shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                  >
+                    {betNotice}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-3 sm:p-4 lg:p-5">
+                <BettingGrid onNoticeChange={setBetNotice} />
+              </div>
+            </div>
+          </section>
+
+          {/* Right: Player List */}
+          <div className="lg:sticky lg:top-[84px]">
+            <PlayerList />
           </div>
-
-          {/* Betting Grid */}
-          <BettingGrid />
-
-          {/* Chip Selector (only during betting) */}
-          <AnimatePresence>
-            {isBetting && !store.isHost && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-              >
-                <ChipSelector />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Host Controls */}
-          {store.isHost && <HostControls />}
-        </div>
-
-        {/* Right: Player List */}
-        <div className="lg:w-72 shrink-0">
-          <PlayerList />
         </div>
       </div>
 
@@ -244,6 +269,8 @@ export default function GameRoom() {
       <AnimatePresence>
         {store.showResult && <ResultOverlay />}
       </AnimatePresence>
+
+      <BackgroundMusic />
     </div>
   );
 }

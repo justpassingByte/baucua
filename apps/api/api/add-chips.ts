@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: 'Invalid chip amount (1–10000)' });
     }
 
-    const raw = await redis.get<string>(`room:${roomId}`);
+    const raw = await redis.get<string>(`room:${roomId.toUpperCase()}`);
     if (!raw) {
       return res.status(404).json({ success: false, error: 'Room not found' });
     }
@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       chips: target.chips + amount,
     };
 
-    await redis.set(`room:${room.id}`, JSON.stringify(room), { ex: 86400 });
+    await redis.set(`room:${room.id.toUpperCase()}`, JSON.stringify(room), { ex: 86400 });
 
     // Broadcast updated players
     await broadcast(room.id, 'chips_added', {

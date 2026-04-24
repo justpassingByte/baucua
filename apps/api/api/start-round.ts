@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { roomId, hostId } = req.body as StartRoundRequest;
 
-    const raw = await redis.get<string>(`room:${roomId}`);
+    const raw = await redis.get<string>(`room:${roomId.toUpperCase()}`);
     if (!raw) {
       return res.status(404).json({ success: false, error: 'Room not found' });
     }
@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     room.currentRound = createRound(room.roundNumber);
     room.status = 'BETTING';
 
-    await redis.set(`room:${room.id}`, JSON.stringify(room), { ex: 86400 });
+    await redis.set(`room:${room.id.toUpperCase()}`, JSON.stringify(room), { ex: 86400 });
 
     // Broadcast
     await broadcast(room.id, 'round_started', {

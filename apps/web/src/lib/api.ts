@@ -28,10 +28,10 @@ export const api = {
       body: JSON.stringify({ hostName }),
     }),
 
-  joinRoom: (roomId: string, playerName: string) =>
+  joinRoom: (roomId: string, playerName: string, playerId?: string) =>
     request('join-room', {
       method: 'POST',
-      body: JSON.stringify({ roomId, playerName }),
+      body: JSON.stringify({ roomId, playerName, playerId }),
     }),
 
   getRoom: (roomId: string) =>
