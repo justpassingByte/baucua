@@ -1,11 +1,12 @@
 const API_URL = import.meta.env.VITE_API_URL || '';
+const baseUrl = API_URL.replace(/\/$/, ''); // Remove trailing slash if present
 
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; error?: string }> {
   try {
-    const res = await fetch(`${API_URL}/api/${endpoint}`, {
+    const res = await fetch(`${baseUrl}/api/${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
