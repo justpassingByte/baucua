@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis';
-import type { Room } from '@baucua/shared';
+import type { Room } from './shared';
 
 const isDummy = !process.env.UPSTASH_REDIS_REST_URL;
 const mockStorage = new Map<string, string>();

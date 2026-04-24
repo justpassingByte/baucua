@@ -4,11 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "tsx server.ts",
-    "deploy": "vercel --prod",
-    "build": "cd ../../packages/shared && npm run build"
+    "deploy": "vercel --prod"
   },
   "dependencies": {
-    "@baucua/shared": "workspace:*",
     "@upstash/redis": "^1.31.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

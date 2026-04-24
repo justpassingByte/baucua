@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { redis } from '../lib/redis';
 import { broadcast } from '../lib/pusher';
-import type { Room, PlaceBetRequest } from '@baucua/shared';
-import { SYMBOLS } from '@baucua/shared';
+import type { Room, PlaceBetRequest } from '../lib/shared';
+import { SYMBOLS } from '../lib/shared';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {

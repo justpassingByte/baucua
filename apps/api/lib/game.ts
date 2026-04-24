@@ -1,5 +1,5 @@
-import type { Symbol, Bet, Room, RoundData } from '@baucua/shared';
-import { SYMBOLS, DEFAULT_CHIPS, BETTING_DURATION } from '@baucua/shared';
+import type { Symbol, Bet, Room, RoundData } from './shared';
+import { SYMBOLS, DEFAULT_CHIPS, BETTING_DURATION } from './shared';
 
 /**
  * Generate random dice result (3 dice)

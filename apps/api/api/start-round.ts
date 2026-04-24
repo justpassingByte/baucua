@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { redis } from '../lib/redis';
 import { broadcast } from '../lib/pusher';
 import { createRound } from '../lib/game';
-import type { Room, StartRoundRequest } from '@baucua/shared';
+import type { Room, StartRoundRequest } from '../lib/shared';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {

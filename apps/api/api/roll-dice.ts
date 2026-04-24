@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { redis } from '../lib/redis';
 import { broadcast } from '../lib/pusher';
 import { rollDice, calculatePayouts, applyPayouts } from '../lib/game';
-import type { Room, RollDiceRequest, Symbol } from '@baucua/shared';
-import { SYMBOLS } from '@baucua/shared';
+import type { Room, RollDiceRequest, Symbol } from '../lib/shared';
+import { SYMBOLS } from '../lib/shared';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
