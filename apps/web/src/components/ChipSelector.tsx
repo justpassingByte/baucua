@@ -13,9 +13,7 @@ export default function ChipSelector() {
   const { selectedChip, setSelectedChip, room, playerId, myBets } = useGameStore();
   const player = room && playerId ? room.players[playerId] : null;
 
-  // player.chips is updated from server via bet_updated; myBets tracks local unconfirmed bets
-  const localUnconfirmed = Object.values(myBets).reduce((a, b) => a + b, 0);
-  const remaining = player ? Math.max(0, player.chips - localUnconfirmed) : 0;
+  const remaining = player ? Math.max(0, player.chips) : 0;
   const noChips = player ? player.chips <= 0 : false;
 
   if (noChips) {

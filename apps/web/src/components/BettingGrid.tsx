@@ -32,11 +32,8 @@ export default function BettingGrid() {
     const player = room.players[playerId];
     if (!player) return;
 
-    const totalAlreadyBet = Object.values(myBets).reduce((a, b) => a + b, 0);
-    const remaining = player.chips - totalAlreadyBet;
-
     if (player.chips <= 0) return;
-    if (selectedChip > remaining) return;
+    if (selectedChip > player.chips) return;
 
     // Client-side capacity pre-check
     if (hostMaxBet !== null && selectedChip > hostMaxBet) {

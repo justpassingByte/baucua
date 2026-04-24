@@ -70,11 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ success: false, error: 'Player not found' });
     }
 
-    // Calculate total bets for this player in current round
-    const playerBets = room.currentRound.bets.filter((b) => b.playerId === playerId);
-    const totalBetted = playerBets.reduce((sum, b) => sum + b.amount, 0);
-
-    if (totalBetted + amount > player.chips) {
+    if (amount > player.chips) {
       return res.status(400).json({ success: false, error: 'Không đủ chips' });
     }
 
