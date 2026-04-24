@@ -1,0 +1,258 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base Reset ─────────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Lexend', sans-serif;
+  /* Brighter dark base — deep indigo instead of near-black */
+  background: #0d0d1f;
+  color: #f1f5f9;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ─── Background Texture — richer, brighter glows ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 0%,   rgba(229, 62,  62,  0.14) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 100%, rgba(246, 173, 85,  0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%,  rgba(56,  178, 172, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 0%,   rgba(99,  102, 241, 0.07) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track  { background: #111127; }
+::-webkit-scrollbar-thumb  { background: #2d2d55; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #F6AD55; }
+
+/* ─── Glass Card — lighter surface ──────────────── */
+@layer components {
+  .glass-card {
+    @apply backdrop-blur-xl border rounded-2xl;
+    background: rgba(25, 25, 55, 0.65);
+    border-color: rgba(255, 255, 255, 0.09);
+    box-shadow:
+      0 4px 30px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+  .glass-card-hover:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+  }
+
+  /* ─── Gold Shimmer Text ────────────────────────── */
+  .text-shimmer {
+    background: linear-gradient(
+      110deg,
+      #F6AD55 0%,
+      #FCD34D 35%,
+      #F6AD55 50%,
+      #FCD34D 65%,
+      #F6AD55 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% center; }
+    100% { background-position: -200% center; }
+  }
+
+  /* ─── Betting Tile ─────────────────────────────── */
+  .betting-tile {
+    @apply relative overflow-hidden rounded-2xl border-2 p-3
+           flex flex-col items-center justify-center gap-1
+           transition-all duration-300 cursor-pointer select-none;
+    border-color: rgba(255, 255, 255, 0.10);
+    background: linear-gradient(145deg, rgba(28, 28, 55, 0.85), rgba(16, 16, 38, 0.92));
+  }
+
+  .betting-tile:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    transform: translateY(-3px);
+    background: linear-gradient(145deg, rgba(38, 38, 72, 0.9), rgba(22, 22, 50, 0.95));
+  }
+
+  .betting-tile.active {
+    border-color: #F6AD55;
+    box-shadow:
+      0 0 22px rgba(246, 173, 85, 0.25),
+      inset 0 0 22px rgba(246, 173, 85, 0.06);
+  }
+
+  .betting-tile.winning {
+    border-color: #4fd1c5;
+    box-shadow:
+      0 0 32px rgba(79, 209, 197, 0.35),
+      inset 0 0 32px rgba(79, 209, 197, 0.07);
+    animation: glowPulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 22px rgba(79, 209, 197, 0.25); }
+    50%       { box-shadow: 0 0 44px rgba(79, 209, 197, 0.55); }
+  }
+
+  /* ─── Chip Button ──────────────────────────────── */
+  .chip-btn {
+    @apply relative rounded-full font-heading font-bold text-sm
+           flex items-center justify-center
+           transition-all duration-200 cursor-pointer select-none;
+    width: 52px;
+    height: 52px;
+    border: 3px dashed;
+  }
+  .chip-btn:hover    { transform: scale(1.1); }
+  .chip-btn.selected { transform: scale(1.15); box-shadow: 0 0 20px currentColor; }
+
+  /* ─── Dice Arena (replaces old dice-bowl) ──────── */
+  .dice-arena {
+    @apply relative;
+    min-height: 240px;
+  }
+
+  /* Ghost dice in idle state */
+  .dice-face-ghost {
+    @apply rounded-xl flex items-center justify-center;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, rgba(28,28,60,0.6), rgba(20,20,44,0.8));
+    border: 1px solid rgba(255,255,255,0.08);
+    transform: translate(-50%, -50%);
+  }
+
+  /* Dice under bowl while shaking */
+  .dice-face-rolling {
+    @apply rounded-xl flex items-center justify-center shadow-lg;
+    width: 58px;
+    height: 58px;
+    background: linear-gradient(135deg, #1e1e42, #2a2a52);
+    border: 2px solid rgba(255,255,255,0.12);
+    transform: translate(calc(-50% + var(--tx, 0px)), calc(-50% + var(--ty, 0px)));
+    position: absolute;
+    left: 50%;
+    top: 50%;
+  }
+
+  /* Revealed dice */
+  .dice-face-result {
+    @apply rounded-2xl flex flex-col items-center justify-center shadow-xl;
+    width: 66px;
+    height: 72px;
+    background: linear-gradient(135deg, #252550, #1c1c40);
+    border: 2px solid rgba(255,255,255,0.18);
+    box-shadow:
+      0 0 20px rgba(246,173,85,0.15),
+      inset 0 1px 0 rgba(255,255,255,0.08);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .dice-sym-label {
+    @apply text-white/60 font-heading font-semibold;
+    font-size: 9px;
+    margin-top: 2px;
+  }
+
+  /* Bowl */
+  .bowl-lid {
+    position: absolute;
+    cursor: grab;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6)) drop-shadow(0 0 12px rgba(200,146,42,0.3));
+    transition: filter 0.2s;
+  }
+  .bowl-lid:hover {
+    filter: drop-shadow(0 8px 28px rgba(0,0,0,0.7)) drop-shadow(0 0 18px rgba(200,146,42,0.5));
+  }
+  .bowl-lid:active { cursor: grabbing; }
+
+  .bowl-hint {
+    @apply absolute text-accent-gold text-[10px] font-heading font-semibold text-center whitespace-nowrap;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0.8;
+  }
+
+  /* Status caption under dice area */
+  .status-caption {
+    @apply text-white/50 text-sm font-body text-center;
+    letter-spacing: 0.02em;
+  }
+
+  /* ─── Timer Ring ───────────────────────────────── */
+  .timer-ring {
+    stroke-dasharray: 283;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear;
+  }
+
+  /* ─── Button Variants ──────────────────────────── */
+  .btn-gold {
+    @apply px-6 py-3 rounded-xl font-heading font-bold text-surface-900
+           transition-all duration-300 cursor-pointer;
+    background: linear-gradient(135deg, #F6AD55, #FCD34D);
+    box-shadow: 0 4px 15px rgba(246, 173, 85, 0.3);
+  }
+  .btn-gold:hover   { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(246, 173, 85, 0.5); }
+  .btn-gold:active  { transform: translateY(0); }
+  .btn-gold:disabled { @apply opacity-50 cursor-not-allowed; transform: none; box-shadow: none; }
+
+  .btn-red {
+    @apply px-6 py-3 rounded-xl font-heading font-bold text-white
+           transition-all duration-300 cursor-pointer;
+    background: linear-gradient(135deg, #E53E3E, #FC5C65);
+    box-shadow: 0 4px 15px rgba(229, 62, 62, 0.3);
+  }
+  .btn-red:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(229, 62, 62, 0.5); }
+
+  .btn-outline {
+    @apply px-6 py-3 rounded-xl font-heading font-semibold text-white/80
+           border border-white/20 transition-all duration-300 cursor-pointer bg-transparent;
+  }
+  .btn-outline:hover {
+    @apply border-white/40 text-white;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  /* ─── Surface bg util ──────────────────────────── */
+  .surface-800 { background: rgba(22, 22, 48, 0.8); }
+  .surface-900 { background: rgba(13, 13, 31, 0.9); }
+}

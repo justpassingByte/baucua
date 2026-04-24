@@ -1,0 +1,26 @@
+{
+  "name": "@baucua/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx server.ts",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@baucua/shared": "workspace:*",
+    "@upstash/redis": "^1.31.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "nanoid": "^5.0.7",
+    "pusher": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.12.12",
+    "@vercel/node": "^3.1.7",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.5"
+  }
+}

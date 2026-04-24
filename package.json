@@ -1,0 +1,15 @@
+{
+  "name": "baucua",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @baucua/api dev\" \"pnpm --filter @baucua/web dev\"",
+    "dev:web": "pnpm --filter @baucua/web dev",
+    "dev:api": "pnpm --filter @baucua/api dev",
+    "build": "pnpm --filter @baucua/web build",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}
