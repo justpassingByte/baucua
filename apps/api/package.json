@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "tsx server.ts",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "build": "cd ../../packages/shared && npm run build"
   },
   "dependencies": {
     "@baucua/shared": "workspace:*",
