@@ -25,6 +25,7 @@ interface Bet {
   roundNumber?: number;
   chipsBefore?: number;
   chipsAfter?: number;
+  requestId?: string;
 }
 
 interface BetHistoryEntry extends Bet {
@@ -69,7 +70,7 @@ interface GameState {
   lastPayouts: Record<string, number> | null;
   diceResult: [Symbol, Symbol, Symbol] | null;
   devControlled: [Symbol, Symbol, Symbol] | null;
-  betInFlight: boolean;
+  pendingBetRequestIds: string[];
   diceHistory: { roundNumber: number; result: [Symbol, Symbol, Symbol] }[];
 
   // Actions
@@ -86,7 +87,8 @@ interface GameState {
   updateBets: (bets: Bet[]) => void;
   updateStatus: (status: RoomStatus) => void;
   updateRound: (round: RoundData, roundNumber?: number) => void;
-  setBetInFlight: (v: boolean) => void;
+  addPendingBetRequest: (requestId: string) => void;
+  removePendingBetRequest: (requestId: string) => void;
   setDevControlled: (v: [Symbol, Symbol, Symbol] | null) => void;
   reset: () => void;
 }
@@ -102,7 +104,7 @@ export const useGameStore = create<GameState>((set) => ({
   showResult: false,
   lastPayouts: null,
   diceResult: null,
-  betInFlight: false,
+  pendingBetRequestIds: [],
   devControlled: null,
   diceHistory: [],
 
@@ -169,7 +171,17 @@ export const useGameStore = create<GameState>((set) => ({
         : null,
     })),
 
-  setBetInFlight: (v) => set({ betInFlight: v }),
+  addPendingBetRequest: (requestId) =>
+    set((state) => (
+      state.pendingBetRequestIds.includes(requestId)
+        ? state
+        : { pendingBetRequestIds: [...state.pendingBetRequestIds, requestId] }
+    )),
+
+  removePendingBetRequest: (requestId) =>
+    set((state) => ({
+      pendingBetRequestIds: state.pendingBetRequestIds.filter((id) => id !== requestId),
+    })),
 
   setDevControlled: (v) => set({ devControlled: v }),
 
@@ -185,7 +197,7 @@ export const useGameStore = create<GameState>((set) => ({
       showResult: false,
       lastPayouts: null,
       diceResult: null,
-      betInFlight: false,
+      pendingBetRequestIds: [],
       devControlled: null,
       diceHistory: [],
     }),

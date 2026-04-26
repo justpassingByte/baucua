@@ -39,6 +39,7 @@ export interface Bet {
   roundNumber?: number;
   chipsBefore?: number;
   chipsAfter?: number;
+  requestId?: string;
 }
 
 export interface BetHistoryEntry extends Bet {
@@ -93,6 +94,7 @@ export interface PlaceBetRequest {
   playerId: string;
   symbol: Symbol;
   amount: number;
+  requestId?: string;
 }
 
 export interface StartRoundRequest {

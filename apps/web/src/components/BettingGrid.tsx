@@ -7,7 +7,6 @@ import { playSfx } from '../lib/sfx';
 import type { Symbol } from '../store/gameStore';
 
 const BOARD_ORDER: Symbol[] = ['NAI', 'BAU', 'GA', 'CA', 'CUA', 'TOM'];
-let placeBetQueue: Promise<void> = Promise.resolve();
 
 const SYMBOL_IMAGE: Record<Symbol, string> = {
   BAU: '/art/symbols/bau.png',
@@ -36,20 +35,16 @@ export default function BettingGrid({ onNoticeChange }: Props) {
   const isBetting = room?.status === 'BETTING';
   const [betError, setBetError] = useState<string | null>(null);
 
-  const handleBetSynced = async (symbol: Symbol, chip: number) => {
+  const handleBetSynced = async (symbol: Symbol, chip: number, requestId: string) => {
     const state = useGameStore.getState();
     const currentRoom = state.room;
     const currentPlayerId = state.playerId;
 
     if (!currentRoom || !currentPlayerId) return;
 
-    // Mark bet in flight so Pusher doesn't overwrite our state mid-request
-    useGameStore.getState().setBetInFlight(true);
-
-    const res = await api.placeBet(currentRoom.id, currentPlayerId, symbol, chip);
+    const res = await api.placeBet(currentRoom.id, currentPlayerId, symbol, chip, requestId);
 
     if (!res.success) {
-      useGameStore.getState().setBetInFlight(false);
       // Refresh from server to get correct state
       const refreshed = await api.getRoom(currentRoom.id);
       if (refreshed.success && refreshed.data) {
@@ -70,7 +65,7 @@ export default function BettingGrid({ onNoticeChange }: Props) {
       if (players) store.updatePlayers(players);
     }
 
-    useGameStore.getState().setBetInFlight(false);
+    useGameStore.getState().removePendingBetRequest(requestId);
   };
 
   const handleBetQueued = (symbol: Symbol) => {
@@ -97,6 +92,9 @@ export default function BettingGrid({ onNoticeChange }: Props) {
 
     setBetError(null);
     onNoticeChange?.(null);
+    const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     // -- OPTIMISTIC UPDATE --
     const optimisticBet = {
@@ -104,6 +102,7 @@ export default function BettingGrid({ onNoticeChange }: Props) {
       playerName: player.name,
       symbol,
       amount: chip,
+      requestId,
       createdAt: Date.now(),
       roundNumber: currentRoom.roundNumber,
       chipsBefore: player.chips,
@@ -120,10 +119,11 @@ export default function BettingGrid({ onNoticeChange }: Props) {
 
     useGameStore.getState().updatePlayers(newPlayers);
     useGameStore.getState().updateBets(newBets as any);
+    useGameStore.getState().addPendingBetRequest(requestId);
     playSfx('bet', 0.35);
 
     // -- SEND CONCURRENTLY (NO QUEUE) --
-    handleBetSynced(symbol, chip).catch((error) => {
+    handleBetSynced(symbol, chip, requestId).catch((error) => {
       console.error('Bet failed:', error);
     });
   };

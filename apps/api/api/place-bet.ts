@@ -44,10 +44,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   let lock: { key: string; token: string } | null = null;
+  const startedAt = Date.now();
 
   try {
-    const { roomId, playerId, symbol, amount } = req.body as PlaceBetRequest;
-    console.log('[place-bet] Called with:', { roomId, playerId, symbol, amount });
+    const { roomId, playerId, symbol, amount, requestId } = req.body as PlaceBetRequest;
+    console.log('[place-bet] Called with:', { roomId, playerId, symbol, amount, requestId });
 
     // Validate input
     if (!roomId || !playerId || !symbol || !amount) {
@@ -140,6 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       playerName: player.name,
       symbol,
       amount,
+      requestId,
       createdAt,
       roundNumber: room.roundNumber,
       chipsBefore,
@@ -166,14 +168,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('[place-bet] Bets count after push:', room.currentRound.bets.length);
 
-    await redis.set(`room:${room.id.toUpperCase()}`, JSON.stringify(room), { ex: 86400 });
-    await redis.set(historyKey, JSON.stringify(nextHistory), { ex: 86400 * 7 });
+    await Promise.all([
+      redis.set(`room:${room.id.toUpperCase()}`, JSON.stringify(room), { ex: 86400 }),
+      redis.set(historyKey, JSON.stringify(nextHistory), { ex: 86400 * 7 }),
+    ]);
     console.log('[place-bet] ✅ Saved to Redis');
 
     // Broadcast bet update and updated players
     await broadcast(room.id, 'bet_updated', {
       bets: room.currentRound.bets,
       players: room.players,
+      requestId,
       playerId,
       symbol,
       amount,
@@ -181,7 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       success: true,
-      data: { bets: room.currentRound.bets, players: room.players },
+      data: { bets: room.currentRound.bets, players: room.players, requestId },
     });
   } catch (error) {
     console.error('[place-bet] EXCEPTION:', error);
@@ -190,6 +195,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 'Failed to place bet';
     return res.status(500).json({ success: false, error: message });
   } finally {
+    console.log('[place-bet] timing(ms):', { total: Date.now() - startedAt });
     if (lock) {
       await releaseRoomLock(lock);
     }

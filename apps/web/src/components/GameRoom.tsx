@@ -93,13 +93,12 @@ export default function GameRoom() {
       setBetNotice(null);
     });
 
-    channel.bind('bet_updated', (data: { bets: Bet[]; players?: Record<string, Player> }) => {
-      // Skip Pusher updates while a local bet is in flight to prevent
-      // stale server data from overwriting our pending state.
-      // The API response in handleBetSynced will provide authoritative state.
-      if (useGameStore.getState().betInFlight) return;
+    channel.bind('bet_updated', (data: { bets: Bet[]; players?: Record<string, Player>; requestId?: string }) => {
       store.updateBets(data.bets);
       if (data.players) store.updatePlayers(data.players);
+      if (data.requestId) {
+        useGameStore.getState().removePendingBetRequest(data.requestId);
+      }
     });
 
     channel.bind('bet_locked', () => {

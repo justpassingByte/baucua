@@ -46,10 +46,10 @@ export const api = {
       body: JSON.stringify({ roomId, hostId }),
     }),
 
-  placeBet: (roomId: string, playerId: string, symbol: string, amount: number) =>
+  placeBet: (roomId: string, playerId: string, symbol: string, amount: number, requestId?: string) =>
     request('place-bet', {
       method: 'POST',
-      body: JSON.stringify({ roomId, playerId, symbol, amount }),
+      body: JSON.stringify({ roomId, playerId, symbol, amount, requestId }),
     }),
 
   rollDice: (roomId: string, hostId: string, controlledResult?: string[]) =>
