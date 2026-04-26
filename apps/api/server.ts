@@ -15,6 +15,8 @@ import placeBet from './api/place-bet';
 import rollDice from './api/roll-dice';
 import addChips from './api/add-chips';
 import disconnect from './api/disconnect';
+import openBowl from './api/open-bowl';
+import playerBetHistory from './api/player-bet-history';
 
 const app = express();
 
@@ -40,6 +42,8 @@ app.post('/api/place-bet', adapt(placeBet));
 app.post('/api/roll-dice', adapt(rollDice));
 app.post('/api/add-chips', adapt(addChips));
 app.post('/api/disconnect', adapt(disconnect));
+app.post('/api/open-bowl', adapt(openBowl));
+app.get('/api/player-bet-history', adapt(playerBetHistory));
 
 const port = process.env.PORT || 3001;
 

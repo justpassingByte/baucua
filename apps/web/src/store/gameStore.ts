@@ -21,6 +21,16 @@ interface Bet {
   playerName: string;
   symbol: Symbol;
   amount: number;
+  createdAt?: number;
+  roundNumber?: number;
+  chipsBefore?: number;
+  chipsAfter?: number;
+}
+
+interface BetHistoryEntry extends Bet {
+  id: string;
+  roomId: string;
+  roundId: string;
 }
 
 interface RoundData {
@@ -59,6 +69,8 @@ interface GameState {
   lastPayouts: Record<string, number> | null;
   diceResult: [Symbol, Symbol, Symbol] | null;
   devControlled: [Symbol, Symbol, Symbol] | null;
+  betInFlight: boolean;
+  diceHistory: { roundNumber: number; result: [Symbol, Symbol, Symbol] }[];
 
   // Actions
   setIdentity: (playerId: string, playerName: string, isHost: boolean) => void;
@@ -69,10 +81,12 @@ interface GameState {
   setShowResult: (show: boolean) => void;
   setDiceResult: (result: [Symbol, Symbol, Symbol] | null) => void;
   setLastPayouts: (payouts: Record<string, number> | null) => void;
+  addDiceHistory: (roundNumber: number, result: [Symbol, Symbol, Symbol]) => void;
   updatePlayers: (players: Record<string, Player>) => void;
   updateBets: (bets: Bet[]) => void;
   updateStatus: (status: RoomStatus) => void;
-  updateRound: (round: RoundData) => void;
+  updateRound: (round: RoundData, roundNumber?: number) => void;
+  setBetInFlight: (v: boolean) => void;
   setDevControlled: (v: [Symbol, Symbol, Symbol] | null) => void;
   reset: () => void;
 }
@@ -88,7 +102,9 @@ export const useGameStore = create<GameState>((set) => ({
   showResult: false,
   lastPayouts: null,
   diceResult: null,
+  betInFlight: false,
   devControlled: null,
+  diceHistory: [],
 
   setIdentity: (playerId, playerName, isHost) =>
     set({ playerId, playerName, isHost }),
@@ -114,6 +130,13 @@ export const useGameStore = create<GameState>((set) => ({
   setLastPayouts: (payouts) =>
     set({ lastPayouts: payouts }),
 
+  addDiceHistory: (roundNumber, result) =>
+    set((state) => {
+      // Avoid duplicate entries for the same round
+      if (state.diceHistory.some(h => h.roundNumber === roundNumber)) return state;
+      return { diceHistory: [...state.diceHistory, { roundNumber, result }] };
+    }),
+
   updatePlayers: (players) =>
     set((state) => ({
       room: state.room ? { ...state.room, players } : null,
@@ -134,12 +157,19 @@ export const useGameStore = create<GameState>((set) => ({
       room: state.room ? { ...state.room, status } : null,
     })),
 
-  updateRound: (round) =>
+  updateRound: (round, roundNumber) =>
     set((state) => ({
       room: state.room
-        ? { ...state.room, currentRound: round, status: 'BETTING' as RoomStatus }
+        ? { 
+            ...state.room, 
+            currentRound: round, 
+            status: 'BETTING' as RoomStatus,
+            ...(roundNumber !== undefined ? { roundNumber } : {})
+          }
         : null,
     })),
+
+  setBetInFlight: (v) => set({ betInFlight: v }),
 
   setDevControlled: (v) => set({ devControlled: v }),
 
@@ -149,16 +179,18 @@ export const useGameStore = create<GameState>((set) => ({
       playerName: null,
       isHost: false,
       room: null,
-    roomId: null,
-    selectedChip: 10,
-    isRolling: false,
-    showResult: false,
-    lastPayouts: null,
-    diceResult: null,
+      roomId: null,
+      selectedChip: 10,
+      isRolling: false,
+      showResult: false,
+      lastPayouts: null,
+      diceResult: null,
+      betInFlight: false,
       devControlled: null,
+      diceHistory: [],
     }),
 }));
 
 // Re-export types for components
-export type { Symbol, RoomStatus, Player, Bet, RoundData, Room };
+export type { Symbol, RoomStatus, Player, Bet, BetHistoryEntry, RoundData, Room };
 export { SYMBOLS };

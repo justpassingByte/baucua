@@ -29,15 +29,15 @@ export default function ChipSelector() {
   }
 
   return (
-    <div className="glass-card p-4">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="glass-card p-3">
+      <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-heading font-bold tracking-wide text-white/75">Chọn chip</span>
         <span className="text-sm font-heading font-bold text-accent-gold">
-          <ChipBadge amount={remaining} size={18} /> còn lại
+          <ChipBadge amount={remaining} size={16} /> còn lại
         </span>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         {CHIPS.map((chip) => {
           const disabled = chip.value > remaining;
           const selected = selectedChip === chip.value;
@@ -48,19 +48,19 @@ export default function ChipSelector() {
               onClick={() => !disabled && setSelectedChip(chip.value)}
               whileTap={!disabled ? { scale: 0.92 } : {}}
               whileHover={!disabled ? { scale: 1.05 } : {}}
-              className={`relative flex flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 transition-all duration-150 ${
+              className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-2 transition-all duration-150 ${
                 disabled ? 'cursor-not-allowed opacity-30' : 'cursor-pointer'
               } ${selected ? `border-white/30 bg-white/[0.08] ring-2 ${chip.ring} ring-offset-2 ring-offset-transparent` : 'border-white/10 bg-white/[0.03]'}`}
               disabled={disabled}
             >
-              <ChipIcon color={chip.dot} value={chip.value} size={34} className="drop-shadow-[0_6px_10px_rgba(0,0,0,0.20)]" />
-              <span className={`text-[16px] leading-none font-heading font-black tracking-wide ${selected ? 'text-white' : 'text-white/80'}`}>
+              <ChipIcon color={chip.dot} value={chip.value} size={30} className="drop-shadow-[0_4px_8px_rgba(0,0,0,0.20)]" />
+              <span className={`text-[15px] leading-none font-heading font-black tracking-wide ${selected ? 'text-white' : 'text-white/80'}`}>
                 {chip.value}
               </span>
               {selected && (
                 <motion.div
                   layoutId="chip-indicator"
-                  className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-accent-gold shadow-[0_0_12px_rgba(246,173,85,0.8)]"
+                  className="absolute -bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-accent-gold shadow-[0_0_10px_rgba(246,173,85,0.8)]"
                 />
               )}
             </motion.button>
@@ -68,7 +68,7 @@ export default function ChipSelector() {
         })}
       </div>
 
-      <p className="mt-3 text-center text-[11px] font-body text-white/28">Chọn mệnh giá rồi click ô để đặt</p>
+      <p className="mt-2 text-center text-[10px] font-body text-white/28">Chọn mệnh giá rồi click ô để đặt</p>
     </div>
   );
 }

@@ -35,6 +35,16 @@ export interface Bet {
   playerName: string;
   symbol: Symbol;
   amount: number;
+  createdAt?: number;
+  roundNumber?: number;
+  chipsBefore?: number;
+  chipsAfter?: number;
+}
+
+export interface BetHistoryEntry extends Bet {
+  id: string;
+  roomId: string;
+  roundId: string;
 }
 
 export interface RoundData {
@@ -104,6 +114,6 @@ export interface ApiResponse<T = unknown> {
 
 // ─── Constants ─────────────────────────────────────────
 export const DEFAULT_CHIPS = 1000;
-export const BETTING_DURATION = 15; // seconds
+export const BETTING_DURATION = 30; // seconds
 export const ROLL_ANIMATION_DURATION = 2000; // ms
 export const REVEAL_DELAY = 500; // ms

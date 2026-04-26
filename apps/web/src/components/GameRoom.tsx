@@ -11,6 +11,7 @@ import BackgroundMusic from './BackgroundMusic';
 import PlayerList from './PlayerList';
 import HostControls from './HostControls';
 import ResultOverlay from './ResultOverlay';
+import DiceHistory from './DiceHistory';
 import { playSfx } from '../lib/sfx';
 import type { Bet, Player, Symbol, RoundData } from '../store/gameStore';
 
@@ -82,7 +83,7 @@ export default function GameRoom() {
     });
 
     channel.bind('round_started', (data: { round: RoundData; roundNumber: number; status: string }) => {
-      store.updateRound(data.round);
+      store.updateRound(data.round, data.roundNumber);
       store.updateStatus('BETTING');
       store.setDiceResult(null);
       store.setShowResult(false);
@@ -93,6 +94,10 @@ export default function GameRoom() {
     });
 
     channel.bind('bet_updated', (data: { bets: Bet[]; players?: Record<string, Player> }) => {
+      // Skip Pusher updates while a local bet is in flight to prevent
+      // stale server data from overwriting our pending state.
+      // The API response in handleBetSynced will provide authoritative state.
+      if (useGameStore.getState().betInFlight) return;
       store.updateBets(data.bets);
       if (data.players) store.updatePlayers(data.players);
     });
@@ -136,7 +141,11 @@ export default function GameRoom() {
         store.updatePlayers(data.players);
         store.updateStatus('RESULT');
         store.setShowResult(true);
-        setIsBowlLifting(false);
+        const currentRoom = useGameStore.getState().room;
+        if (currentRoom && data.diceResult) {
+          store.addDiceHistory(currentRoom.roundNumber, data.diceResult);
+        }
+        // keep isBowlLifting as true so it stays open
         setBetNotice(null);
 
         const myPayout = store.playerId ? data.payouts[store.playerId] ?? 0 : 0;
@@ -145,7 +154,7 @@ export default function GameRoom() {
         if (hadBets) {
           playSfx(myPayout > 0 ? 'win' : 'lose', 0.4);
         }
-      }, 3500);
+      }, 1200);
     });
 
     return () => {
@@ -163,12 +172,11 @@ export default function GameRoom() {
     navigate('/');
   }, [roomId, navigate, store.playerId]);
 
-  // Called when host lifts the bowl — triggers roll
+  // Called when host lifts the bowl — triggers open bowl API
   const handleLiftBowl = useCallback(async () => {
     if (!store.room || !store.playerId || !store.isHost) return;
-    const ctrl = store.devControlled ?? undefined;
-    await api.rollDice(store.room.id, store.playerId, ctrl as string[] | undefined);
-  }, [store.room, store.playerId, store.isHost, store.devControlled]);
+    await api.openBowl(store.room.id, store.playerId);
+  }, [store.room, store.playerId, store.isHost]);
 
   if (!store.room) {
     return (
@@ -188,7 +196,7 @@ export default function GameRoom() {
   const isBetting = status === 'BETTING';
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="h-[100dvh] overflow-hidden flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08] bg-surface-900/80 backdrop-blur-md sticky top-0 z-30">
         <div className="flex items-center gap-3">
@@ -204,41 +212,27 @@ export default function GameRoom() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-white/50 text-xs font-body">
-            Vòng {store.room.roundNumber || '—'}
+          <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-full text-white/80 text-xs font-heading font-bold tracking-wide shadow-sm">
+            VÒNG {store.room.roundNumber > 0 ? store.room.roundNumber : '—'}
           </span>
           <StatusBadge status={status} />
         </div>
       </header>
 
       {/* Main game area */}
-      <div className="flex-1 w-full max-w-[1600px] mx-auto p-4 lg:p-6">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className="flex-1 w-full max-w-[1600px] mx-auto p-3 lg:p-4 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start h-full">
           {/* Left: main board */}
-          <section className="glass-card relative min-w-0 overflow-hidden p-4 sm:p-5 lg:p-6">
-            <div className="space-y-4">
-              <div className="rounded-[2rem] border border-white/10 bg-[#f4efe4]/5 p-3 sm:p-4 lg:p-6">
+          <section className="h-full glass-card relative min-w-0 overflow-y-auto lg:overflow-hidden p-3 sm:p-4 flex flex-col">
+            <div className="space-y-3 flex-1 flex flex-col min-h-0">
+              <div className="flex-[1.2] rounded-2xl border border-white/10 bg-[#f4efe4]/5 p-2 sm:p-3 relative z-10 flex flex-col items-center justify-center min-h-[180px]">
                 <DiceArea
                   onLiftBowl={store.isHost ? handleLiftBowl : undefined}
                   isBowlLifting={isBowlLifting}
                 />
               </div>
 
-              {store.isHost && <HostControls />}
-
-              {/* Chip Selector (only during betting) */}
-              <AnimatePresence>
-                {isBetting && !store.isHost && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                  >
-                    <ChipSelector />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
+              {/* HostControls moved to sidebar */}
               <AnimatePresence>
                 {betNotice && (
                   <motion.div
@@ -252,15 +246,31 @@ export default function GameRoom() {
                 )}
               </AnimatePresence>
 
-              <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-3 sm:p-4 lg:p-5">
+              <div className="flex-none sm:flex-1 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-2 sm:p-3 min-h-[300px] sm:min-h-0 flex flex-col">
                 <BettingGrid onNoticeChange={setBetNotice} />
               </div>
             </div>
           </section>
 
-          {/* Right: Player List */}
-          <div className="lg:sticky lg:top-[84px]">
+          {/* Right: Player List & Host Controls */}
+          <div className="h-full lg:sticky lg:top-[84px] min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col gap-3">
+            {store.isHost && <HostControls />}
+            
+            <AnimatePresence>
+              {isBetting && !store.isHost && (
+                <motion.div
+                  className="shrink-0"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                >
+                  <ChipSelector />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <PlayerList />
+            <DiceHistory />
           </div>
         </div>
       </div>

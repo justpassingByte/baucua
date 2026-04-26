@@ -22,7 +22,7 @@ export default function Timer({ endsAt, active }: TimerProps) {
 
   if (!active && secondsLeft <= 0) return null;
 
-  const total = 15;
+  const total = 30;
   const pct = Math.min(1, secondsLeft / total);
   const circumference = 2 * Math.PI * 45;
   const offset = circumference * (1 - pct);

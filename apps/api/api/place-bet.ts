@@ -1,8 +1,34 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { redis } from '../lib/redis';
 import { broadcast } from '../lib/pusher';
-import type { Room, PlaceBetRequest } from '../lib/shared';
+import type { BetHistoryEntry, Room, PlaceBetRequest } from '../lib/shared';
 import { SYMBOLS } from '../lib/shared';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function acquireRoomLock(roomId: string): Promise<{ key: string; token: string }> {
+  const key = `lock:room:${roomId.toUpperCase()}:bet`;
+  const token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const locked = await redis.set(key, token, { nx: true, px: 3000 });
+    if (locked) return { key, token };
+    await sleep(20 + attempt * 8);
+  }
+
+  throw new Error('Bet queue is busy');
+}
+
+async function releaseRoomLock(lock: { key: string; token: string }) {
+  try {
+    const current = await redis.get<string>(lock.key);
+    if (current === lock.token) {
+      await redis.del(lock.key);
+    }
+  } catch (error) {
+    console.warn('[place-bet] Failed to release room lock:', error);
+  }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
@@ -17,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   res.setHeader('Access-Control-Allow-Origin', '*');
+  let lock: { key: string; token: string } | null = null;
 
   try {
     const { roomId, playerId, symbol, amount } = req.body as PlaceBetRequest;
@@ -37,6 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[place-bet] REJECTED: Invalid bet amount', amount);
       return res.status(400).json({ success: false, error: 'Invalid bet amount' });
     }
+
+    lock = await acquireRoomLock(roomId);
 
     const raw = await redis.get<string>(`room:${roomId.toUpperCase()}`);
     if (!raw) {
@@ -99,21 +128,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── ALL VALIDATIONS PASSED ──
     console.log('[place-bet] ✅ All validations passed, saving bet');
 
+    const chipsBefore = player.chips;
+    const createdAt = Date.now();
+
     // Deduct chips immediately
     player.chips -= amount;
     player.totalBet = (player.totalBet ?? 0) + amount;
 
-    // Add bet
-    room.currentRound.bets.push({
+    const bet = {
       playerId,
       playerName: player.name,
       symbol,
       amount,
-    });
+      createdAt,
+      roundNumber: room.roundNumber,
+      chipsBefore,
+      chipsAfter: player.chips,
+    };
+
+    // Add bet
+    room.currentRound.bets.push(bet);
+
+    const historyEntry: BetHistoryEntry = {
+      id: `${room.currentRound.id}:${createdAt}:${playerId}:${room.currentRound.bets.length}`,
+      roomId: room.id,
+      roundId: room.currentRound.id,
+      ...bet,
+    };
+    const historyKey = `bet-history:${room.id.toUpperCase()}:${playerId}`;
+    const existingHistoryRaw = await redis.get<BetHistoryEntry[] | string>(historyKey);
+    const existingHistory: BetHistoryEntry[] = Array.isArray(existingHistoryRaw)
+      ? existingHistoryRaw
+      : typeof existingHistoryRaw === 'string'
+        ? JSON.parse(existingHistoryRaw)
+        : [];
+    const nextHistory = [historyEntry, ...existingHistory].slice(0, 100);
 
     console.log('[place-bet] Bets count after push:', room.currentRound.bets.length);
 
     await redis.set(`room:${room.id.toUpperCase()}`, JSON.stringify(room), { ex: 86400 });
+    await redis.set(historyKey, JSON.stringify(nextHistory), { ex: 86400 * 7 });
     console.log('[place-bet] ✅ Saved to Redis');
 
     // Broadcast bet update and updated players
@@ -127,10 +181,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       success: true,
-      data: { bets: room.currentRound.bets },
+      data: { bets: room.currentRound.bets, players: room.players },
     });
   } catch (error) {
     console.error('[place-bet] EXCEPTION:', error);
-    return res.status(500).json({ success: false, error: 'Failed to place bet' });
+    const message = error instanceof Error && error.message === 'Bet queue is busy'
+      ? 'Server dang xu ly qua nhieu lenh cuoc, vui long thu lai'
+      : 'Failed to place bet';
+    return res.status(500).json({ success: false, error: message });
+  } finally {
+    if (lock) {
+      await releaseRoomLock(lock);
+    }
   }
 }

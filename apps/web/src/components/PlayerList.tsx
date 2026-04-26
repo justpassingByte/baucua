@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
 import { api } from '../lib/api';
 import { ChipBadge } from './ChipIcon';
+import type { BetHistoryEntry, Player } from '../store/gameStore';
 
 const CHIP_AMOUNTS = [100, 500, 1000, 5000] as const;
 
@@ -23,6 +24,10 @@ export default function PlayerList() {
   const { room, playerId, isHost, lastPayouts } = useGameStore();
   const [chipLoadingPlayerId, setChipLoadingPlayerId] = useState<string | null>(null);
   const [chipMsg, setChipMsg] = useState<string | null>(null);
+  const [historyPlayer, setHistoryPlayer] = useState<Player | null>(null);
+  const [history, setHistory] = useState<BetHistoryEntry[]>([]);
+  const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   if (!room) return null;
 
@@ -44,6 +49,24 @@ export default function PlayerList() {
 
     setChipLoadingPlayerId(null);
     window.setTimeout(() => setChipMsg(null), 2000);
+  };
+
+  const handleOpenHistory = async (targetPlayerId: string) => {
+    setHistoryLoadingId(targetPlayerId);
+    setHistoryError(null);
+    setHistory([]);
+    setHistoryPlayer(room.players[targetPlayerId] ?? null);
+
+    const res = await api.getPlayerBetHistory(room.id, targetPlayerId);
+    if (res.success && res.data) {
+      const data = res.data as { player: Player; history: BetHistoryEntry[] };
+      setHistoryPlayer(data.player);
+      setHistory(data.history);
+    } else {
+      setHistoryError(res.error || 'Khong tai duoc lich su cuoc');
+    }
+
+    setHistoryLoadingId(null);
   };
 
   return (
@@ -86,7 +109,17 @@ export default function PlayerList() {
           return (
             <motion.div
               key={p.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleOpenHistory(p.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  handleOpenHistory(p.id);
+                }
+              }}
               className={`flex items-start justify-between gap-3 px-3 py-2.5 rounded-xl transition-colors
+                cursor-pointer hover:bg-white/[0.06]
                 ${isMe ? 'bg-accent-gold/12 border border-accent-gold/25' : ''}
                 ${offline ? 'opacity-40' : ''}
                 ${noChips && !isMe && !offline ? 'bg-red-500/5 border border-red-500/10' : ''}
@@ -161,7 +194,10 @@ export default function PlayerList() {
                     {CHIP_AMOUNTS.map((amt) => (
                       <button
                         key={amt}
-                        onClick={() => handleAddChips(p.id, amt)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleAddChips(p.id, amt);
+                        }}
                         disabled={!canAddChips || rowLoading}
                         className="rounded-lg border border-white/10 bg-white/[0.06] px-2 py-1.5 text-[10px] font-heading font-bold text-white/80 shadow-[0_6px_12px_rgba(0,0,0,0.14)] transition-colors hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       >
@@ -175,6 +211,89 @@ export default function PlayerList() {
           );
         })}
       </div>
+
+      <AnimatePresence>
+        {historyPlayer && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setHistoryPlayer(null)}
+          >
+            <motion.div
+              className="w-full max-w-lg rounded-2xl border border-white/10 bg-surface-900 p-4 shadow-2xl"
+              initial={{ scale: 0.96, y: 12 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.96, y: 12 }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="font-heading text-sm font-bold uppercase tracking-wider text-white/80">
+                    Lịch sử cược <span className="text-accent-gold ml-2 normal-case">(Đang ở vòng {room.roundNumber > 0 ? room.roundNumber : '—'})</span>
+                  </h4>
+                  <p className="mt-1 text-xs font-body text-white/50">
+                    {historyPlayer.name} - chips server: {formatChips(historyPlayer.chips)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setHistoryPlayer(null)}
+                  className="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-heading font-bold text-white/70 hover:bg-white/[0.1]"
+                >
+                  Dong
+                </button>
+              </div>
+
+              {historyLoadingId && (
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-xs font-body text-white/60">
+                  Dang fetch lai tu server...
+                </div>
+              )}
+
+              {!historyLoadingId && historyError && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-3 text-xs font-body text-red-200">
+                  {historyError}
+                </div>
+              )}
+
+              {!historyLoadingId && !historyError && history.length === 0 && (
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-xs font-body text-white/50">
+                  Chua co lich su cuoc tren server.
+                </div>
+              )}
+
+              {!historyLoadingId && history.length > 0 && (
+                <div className="max-h-[55dvh] space-y-2 overflow-y-auto pr-1">
+                  {history.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-heading font-bold text-accent-gold">
+                          Vong {entry.roundNumber ?? '?'} - {entry.symbol}
+                        </span>
+                        <span className="text-xs font-heading font-bold text-white/80">
+                          {formatChips(entry.amount)}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-body text-white/45">
+                        <span>{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'khong co thoi gian'}</span>
+                        {entry.chipsBefore !== undefined && entry.chipsAfter !== undefined && (
+                          <span>
+                            {formatChips(entry.chipsBefore)} {'->'} {formatChips(entry.chipsAfter)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

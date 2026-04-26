@@ -57,8 +57,8 @@ export default function HostControls() {
             animate={{ opacity: [0.8, 1, 0.8] }}
             transition={{ duration: 1.8, repeat: Infinity }}
           >
-            <p className="text-accent-gold text-sm font-heading font-semibold">🥣 Bạn có thể lắc bát rồi kéo lên</p>
-            <p className="text-white/40 text-[11px] font-body mt-0.5">hoặc bấm nút bên dưới</p>
+            <p className="text-accent-gold text-sm font-heading font-semibold">🎲 Hãy bấm nút để lắc xúc xắc</p>
+            <p className="text-white/40 text-[11px] font-body mt-0.5">Sau đó kéo bát lên để mở</p>
           </motion.div>
           <button onClick={handleRoll} disabled={loading} className="btn-red w-full text-sm">
             {loading ? '⏳' : '🎯 Lắc Ngay'}
@@ -73,6 +73,16 @@ export default function HostControls() {
           transition={{ duration: 1.2, repeat: Infinity }}
         >
           <p className="text-orange-300 text-sm font-heading font-semibold">⏳ Đang lắc xúc xắc...</p>
+        </motion.div>
+      )}
+
+      {status === 'REVEAL' && (
+        <motion.div
+          className="rounded-xl bg-accent-jade/10 border border-accent-jade/30 p-3 text-center"
+          animate={{ opacity: [0.8, 1, 0.8] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          <p className="text-accent-jade-bright text-sm font-heading font-semibold">👆 Hãy kéo bát lên để mở kết quả!</p>
         </motion.div>
       )}
 

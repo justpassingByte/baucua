@@ -192,8 +192,6 @@ body::before {
   }
 
   .dice-flat-card {
-    width: 112px;
-    height: 112px;
     border-radius: 22px;
     display: flex;
     align-items: center;
@@ -208,8 +206,7 @@ body::before {
   }
 
   .dice-flat-card-top {
-    width: 122px;
-    height: 122px;
+    /* Kept class for potential future use, sizing handled by tailwind */
   }
 
   .dice-flat-art {

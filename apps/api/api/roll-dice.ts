@@ -100,25 +100,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     await redis.set(`room:${updatedRoom.id.toUpperCase()}`, JSON.stringify(updatedRoom), { ex: 86400 });
 
-    // Broadcast bowl_lifting first — triggers lift animation on all clients
-    await broadcast(updatedRoom.id, 'bowl_lifting', { status: 'ROLLING' });
-
-    // Broadcast dice result after a short server delay (gives animation time to play)
+    // Broadcast dice result after shaking animation (800ms delay to match client)
     await new Promise((r) => setTimeout(r, 800));
     await broadcast(updatedRoom.id, 'dice_result', {
       diceResult,
       status: 'REVEAL',
-    });
-
-    // After reveal, send final round results
-    updatedRoom.status = 'RESULT';
-    await redis.set(`room:${updatedRoom.id.toUpperCase()}`, JSON.stringify(updatedRoom), { ex: 86400 });
-
-    await broadcast(updatedRoom.id, 'round_ended', {
-      payouts: netProfits,
-      players: updatedRoom.players,
-      diceResult,
-      status: 'RESULT',
     });
 
     return res.status(200).json({

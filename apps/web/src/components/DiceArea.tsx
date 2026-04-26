@@ -22,40 +22,81 @@ export default function DiceArea({ onLiftBowl, isBowlLifting }: Props) {
   const { isRolling, diceResult, room, isHost } = useGameStore();
   const status = room?.status;
 
+  const bowlDragX = useMotionValue(0);
   const bowlDragY = useMotionValue(0);
   const [liftTriggered, setLiftTriggered] = useState(false);
 
   useEffect(() => {
     if (status === 'BETTING' || status === 'WAITING') {
       setLiftTriggered(false);
+      bowlDragX.set(0);
       bowlDragY.set(0);
     }
   }, [status, bowlDragY]);
 
-  const handleDragEnd = (_: any, info: { offset: { y: number } }) => {
-    if (info.offset.y < -78 && !liftTriggered && onLiftBowl) {
+  const handleDragEnd = (_: any, info: { offset: { x: number; y: number } }) => {
+    const dist = Math.sqrt(info.offset.x ** 2 + info.offset.y ** 2);
+    if (dist > 78 && !liftTriggered && onLiftBowl) {
       setLiftTriggered(true);
       onLiftBowl();
       return;
     }
+    bowlDragX.set(0);
     bowlDragY.set(0);
   };
 
-  const showBowl = status === 'WAITING' || status === 'BETTING' || status === 'ROLLING' || (isRolling && !diceResult);
-  const canDrag = isHost && status === 'BETTING' && !liftTriggered;
-  const bowlOpen = liftTriggered || (!!isBowlLifting && !isHost);
+  const showBowl = status === 'WAITING' || status === 'BETTING' || status === 'ROLLING' || status === 'REVEAL' || status === 'RESULT';
+  const canDrag = isHost && status === 'REVEAL' && !liftTriggered;
+  const bowlOpen = liftTriggered || (!!isBowlLifting && !isHost) || status === 'RESULT';
 
   return (
     <div className="dice-arena select-none">
       <div className="mx-auto flex w-full max-w-[980px] flex-col items-center gap-4">
-        <div className="relative flex w-full items-center justify-center overflow-visible" style={{ minHeight: 580 }}>
+        <div className="relative flex w-full flex-1 items-center justify-center overflow-visible min-h-[160px] h-full">
           <div className="absolute inset-x-0 top-1/2 h-36 -translate-y-1/2 rounded-full bg-black/20 blur-3xl" />
+
+          <AnimatePresence>
+            {!isRolling && diceResult && (
+              <motion.div
+                key="result"
+                className="absolute inset-0 flex items-center justify-center z-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="relative flex h-full w-full max-h-[220px] max-w-[280px] sm:max-h-[300px] sm:max-w-[380px] lg:max-h-[360px] lg:max-w-[460px] flex-col items-center justify-center gap-2 sm:gap-4 lg:gap-5">
+                  <motion.div
+                    className="dice-flat-card dice-flat-card-top w-[90px] h-[90px] sm:w-[130px] sm:h-[130px] lg:w-[150px] lg:h-[150px] shrink-0"
+                    initial={{ scale: 0, opacity: 0, y: 24 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    transition={{ delay: 0.04, duration: 0.45, type: 'spring', stiffness: 260, damping: 18 }}
+                  >
+                    <img src={SYMBOL_IMAGE[diceResult[0]]} alt={diceResult[0]} className="dice-flat-art" draggable={false} />
+                  </motion.div>
+
+                  <div className="flex w-full items-center justify-center gap-4 sm:gap-7 px-4">
+                    {diceResult.slice(1).map((sym, i) => (
+                    <motion.div
+                      key={i}
+                      className="dice-flat-card w-[80px] h-[80px] sm:w-[110px] sm:h-[110px] lg:w-[130px] lg:h-[130px] shrink-0"
+                      initial={{ scale: 0, opacity: 0, y: 20 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      transition={{ delay: 0.12 + i * 0.08, duration: 0.42, type: 'spring', stiffness: 250, damping: 18 }}
+                    >
+                      <img src={SYMBOL_IMAGE[sym]} alt={sym} className="dice-flat-art" draggable={false} />
+                    </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <AnimatePresence>
             {showBowl && (
               <motion.div
                 key="bowl-stage"
-                className="absolute inset-0 flex items-center justify-center"
+                className="absolute inset-0 flex items-center justify-center z-10"
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.25 } }}
@@ -63,12 +104,12 @@ export default function DiceArea({ onLiftBowl, isBowlLifting }: Props) {
                 {!bowlOpen && (
                   <motion.div
                     className="relative"
-                    style={{ y: bowlDragY }}
+                    style={{ x: bowlDragX, y: bowlDragY }}
                     drag={canDrag}
-                    dragConstraints={{ top: -180, bottom: 30, left: -24, right: 24 }}
+                    dragConstraints={{ top: -300, bottom: 300, left: -300, right: 300 }}
                     dragElastic={0.22}
                     onDragEnd={handleDragEnd}
-                    whileDrag={{ scale: 1.02 }}
+                    whileDrag={{ scale: 1.05 }}
                   >
                     <TopDownBowl lifting={canDrag} rolling={isRolling || status === 'ROLLING'} />
 
@@ -104,42 +145,7 @@ export default function DiceArea({ onLiftBowl, isBowlLifting }: Props) {
             </div>
           )}
 
-          <AnimatePresence>
-            {!isRolling && diceResult && (
-              <motion.div
-                key="result"
-                className="absolute inset-0 flex items-center justify-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <div className="relative flex h-[420px] w-[520px] flex-col items-center justify-center gap-5">
-                  <motion.div
-                    className="dice-flat-card dice-flat-card-top"
-                    initial={{ scale: 0, opacity: 0, y: 24 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    transition={{ delay: 0.04, duration: 0.45, type: 'spring', stiffness: 260, damping: 18 }}
-                  >
-                    <img src={SYMBOL_IMAGE[diceResult[0]]} alt={diceResult[0]} className="dice-flat-art" draggable={false} />
-                  </motion.div>
 
-                  <div className="flex items-center justify-center gap-7">
-                    {diceResult.slice(1).map((sym, i) => (
-                    <motion.div
-                      key={i}
-                      className="dice-flat-card"
-                      initial={{ scale: 0, opacity: 0, y: 20 }}
-                      animate={{ scale: 1, opacity: 1, y: 0 }}
-                      transition={{ delay: 0.12 + i * 0.08, duration: 0.42, type: 'spring', stiffness: 250, damping: 18 }}
-                    >
-                      <img src={SYMBOL_IMAGE[sym]} alt={sym} className="dice-flat-art" draggable={false} />
-                    </motion.div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
     </div>
@@ -150,7 +156,7 @@ function TopDownBowl({ lifting, rolling }: { lifting: boolean; rolling: boolean 
   return (
     <motion.svg
       viewBox="0 0 520 520"
-      className="h-[400px] w-[400px] max-w-[86vw] drop-shadow-[0_26px_44px_rgba(0,0,0,0.34)] sm:h-[460px] sm:w-[460px] lg:h-[520px] lg:w-[520px]"
+      className="h-[280px] w-[280px] sm:h-[400px] sm:w-[400px] lg:h-[500px] lg:w-[500px] drop-shadow-[0_26px_44px_rgba(0,0,0,0.34)]"
       animate={rolling ? { rotate: [-1.5, 1.5, -1, 1, 0], scale: [1, 1.01, 0.995, 1] } : { rotate: 0, scale: 1 }}
       transition={rolling ? { duration: 0.35, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.24 }}
     >

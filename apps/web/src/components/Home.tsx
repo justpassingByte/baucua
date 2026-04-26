@@ -91,9 +91,10 @@ export default function Home() {
     const res = await api.joinRoom(roomId, playerName, playerId) as any;
     if (res.success && res.data) {
       const { room, playerId: resolvedPlayerId } = res.data;
-      setIdentity(resolvedPlayerId, playerName, false);
+      const isHost = resolvedPlayerId === room.hostId;
+      setIdentity(resolvedPlayerId, playerName, isHost);
       setRoom(room);
-      persistRecentSession(room.id, playerName, false, resolvedPlayerId);
+      persistRecentSession(room.id, playerName, isHost, resolvedPlayerId);
 
       if (res.reconnected) {
         setError('🔄 Đã kết nối lại — chips của bạn vẫn còn!');

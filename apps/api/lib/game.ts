@@ -30,6 +30,8 @@ export function calculatePayouts(
 ): { netProfits: Record<string, number>; balanceUpdates: Record<string, number> } {
   const netProfits: Record<string, number> = { [hostId]: 0 };
   const balanceUpdates: Record<string, number> = { [hostId]: 0 };
+  // Track how much each player originally bet (total across all symbols) for scaling
+  const playerBetTotals: Record<string, number> = {};
 
   // First pass: calculate raw payouts
   for (const bet of bets) {
@@ -38,6 +40,8 @@ export function calculatePayouts(
       netProfits[bet.playerId] = 0;
       balanceUpdates[bet.playerId] = 0;
     }
+    // Track total bet placed per player (across all symbols)
+    playerBetTotals[bet.playerId] = (playerBetTotals[bet.playerId] ?? 0) + bet.amount;
 
     if (matches === 0) {
       // Player lost: net profit is negative, nothing to add back to balance
@@ -59,17 +63,26 @@ export function calculatePayouts(
   // Second pass: cap host losses to available chips (prevents chips creation)
   if (netProfits[hostId] < 0 && Math.abs(netProfits[hostId]) > hostChips) {
     // Host can't cover all winnings; scale down proportionally
-    const scale = hostChips / Math.abs(netProfits[hostId]);
+    const totalHostLoss = Math.abs(netProfits[hostId]);
+    const scale = hostChips / totalHostLoss;
     netProfits[hostId] = -hostChips;
     balanceUpdates[hostId] = -hostChips;
     
     for (const pid of Object.keys(netProfits)) {
       if (pid !== hostId && netProfits[pid] > 0) {
         const scaledWinnings = Math.floor(netProfits[pid] * scale);
-        // Adjust the net profit and balance update for the scaled winnings
-        const originalBet = balanceUpdates[pid] - netProfits[pid];
         netProfits[pid] = scaledWinnings;
-        balanceUpdates[pid] = originalBet + scaledWinnings;
+        // For winners: they get back bets that won + scaled winnings
+        // We need to recalculate balanceUpdates from scratch for this player
+        // Their balance update = sum of (bet.amount for winning bets) + scaledWinnings
+        let wonBetsTotal = 0;
+        for (const bet of bets) {
+          if (bet.playerId === pid) {
+            const m = diceResult.filter((d) => d === bet.symbol).length;
+            if (m > 0) wonBetsTotal += bet.amount;
+          }
+        }
+        balanceUpdates[pid] = wonBetsTotal + scaledWinnings;
       }
     }
   }

@@ -23,11 +23,7 @@ const LABEL: Record<Symbol, string> = {
   NAI: 'Nai',
 };
 
-const TRI = [
-  { x: 0, y: -44 },
-  { x: -44, y: 22 },
-  { x: 44, y: 22 },
-];
+
 
 export default function ResultOverlay() {
   const { playerId, isHost, lastPayouts, setShowResult, diceResult, room } = useGameStore();
@@ -181,21 +177,29 @@ export default function ResultOverlay() {
         )}
 
         {diceResult && (
-          <div className="relative mb-6 flex h-[110px] items-center justify-center">
-            {diceResult.map((sym, i) => (
-              <motion.div
-                key={i}
-                className="absolute left-1/2 top-1/2 flex flex-col items-center"
-                style={{ left: '50%', top: '50%' }}
-                initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                animate={{ x: TRI[i].x, y: TRI[i].y, scale: 1, opacity: 1 }}
-                transition={{ delay: 0.3 + i * 0.12, type: 'spring', stiffness: 260, damping: 18 }}
-              >
-                <div className="dice-face-result" style={{ width: 58, height: 64, transform: 'translate(-50%, -50%)' }}>
-                  <img src={SYMBOL_IMAGE[sym as Symbol]} alt={LABEL[sym as Symbol]} className="h-[84%] w-[84%] object-contain" draggable={false} />
-                </div>
-              </motion.div>
-            ))}
+          <div className="mb-6 flex flex-col items-center justify-center gap-3">
+            <motion.div
+              className="dice-flat-card w-[80px] h-[80px] shrink-0"
+              initial={{ scale: 0, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 18 }}
+            >
+              <img src={SYMBOL_IMAGE[diceResult[0] as Symbol]} alt={LABEL[diceResult[0] as Symbol]} className="dice-flat-art" draggable={false} />
+            </motion.div>
+            
+            <div className="flex items-center justify-center gap-4">
+              {diceResult.slice(1).map((sym, i) => (
+                <motion.div
+                  key={i}
+                  className="dice-flat-card w-[72px] h-[72px] shrink-0"
+                  initial={{ scale: 0, opacity: 0, y: 16 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 + i * 0.1, type: 'spring', stiffness: 260, damping: 18 }}
+                >
+                  <img src={SYMBOL_IMAGE[sym as Symbol]} alt={LABEL[sym as Symbol]} className="dice-flat-art" draggable={false} />
+                </motion.div>
+              ))}
+            </div>
           </div>
         )}
 

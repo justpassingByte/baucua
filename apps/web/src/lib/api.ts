@@ -37,6 +37,9 @@ export const api = {
   getRoom: (roomId: string) =>
     request(`get-room?roomId=${roomId}`),
 
+  getPlayerBetHistory: (roomId: string, playerId: string) =>
+    request(`player-bet-history?roomId=${encodeURIComponent(roomId)}&playerId=${encodeURIComponent(playerId)}`),
+
   startRound: (roomId: string, hostId: string) =>
     request('start-round', {
       method: 'POST',
@@ -65,5 +68,11 @@ export const api = {
     request('disconnect', {
       method: 'POST',
       body: JSON.stringify({ roomId, playerId }),
+    }),
+
+  openBowl: (roomId: string, hostId: string) =>
+    request('open-bowl', {
+      method: 'POST',
+      body: JSON.stringify({ roomId, hostId }),
     }),
 };
