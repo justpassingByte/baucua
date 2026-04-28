@@ -17,6 +17,7 @@ export type ChipValue = (typeof CHIP_VALUES)[number];
 
 // ─── Room Status ───────────────────────────────────────
 export type RoomStatus = 'WAITING' | 'BETTING' | 'ROLLING' | 'REVEAL' | 'RESULT';
+export type BowlSyncPhase = 'dragging' | 'idle';
 
 // ─── Data Models ───────────────────────────────────────
 export interface Player {
@@ -75,6 +76,8 @@ export type PusherEvent =
   | 'bet_locked'
   | 'dice_rolling'
   | 'dice_result'
+  | 'bowl_sync'
+  | 'bowl_lifting'
   | 'round_ended'
   | 'room_updated';
 
@@ -106,6 +109,14 @@ export interface RollDiceRequest {
   roomId: string;
   hostId: string;
   controlledResult?: [Symbol, Symbol, Symbol];
+}
+
+export interface SyncBowlRequest {
+  roomId: string;
+  hostId: string;
+  x: number;
+  y: number;
+  phase: BowlSyncPhase;
 }
 
 export interface ApiResponse<T = unknown> {

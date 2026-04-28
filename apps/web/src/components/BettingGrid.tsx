@@ -28,10 +28,11 @@ const SYMBOL_LABEL: Record<Symbol, string> = {
 
 interface Props {
   onNoticeChange?: (message: string | null) => void;
+  showResultMultipliers?: boolean;
 }
 
-export default function BettingGrid({ onNoticeChange }: Props) {
-  const { room, playerId, isHost, diceResult, setRoom } = useGameStore();
+export default function BettingGrid({ onNoticeChange, showResultMultipliers = false }: Props) {
+  const { room, playerId, isHost, diceResult } = useGameStore();
   const isBetting = room?.status === 'BETTING';
   const [betError, setBetError] = useState<string | null>(null);
 
@@ -162,7 +163,10 @@ export default function BettingGrid({ onNoticeChange }: Props) {
     }
   }
 
-  const wins = new Set<Symbol>(diceResult || []);
+  const revealedDiceResult = showResultMultipliers
+    ? (diceResult || room?.currentRound?.diceResult || null)
+    : null;
+  const wins = new Set<Symbol>(revealedDiceResult || []);
 
   // Chunk the board into rows based on screen size
   // Unified responsive grid layout
@@ -173,7 +177,7 @@ export default function BettingGrid({ onNoticeChange }: Props) {
           {BOARD_ORDER.map((sym, i) => {
             const isW = wins.has(sym);
             const my = myTotals[sym] || 0;
-            const mc = diceResult ? diceResult.filter((d) => d === sym).length : 0;
+            const mc = revealedDiceResult ? revealedDiceResult.filter((d) => d === sym).length : 0;
             const total = totals[sym];
             const playerBets = perPlayerBets[sym];
             const label = SYMBOL_LABEL[sym];

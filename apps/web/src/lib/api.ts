@@ -75,4 +75,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ roomId, hostId }),
     }),
+
+  syncBowl: (roomId: string, hostId: string, x: number, y: number, phase: 'dragging' | 'idle') =>
+    request('sync-bowl', {
+      method: 'POST',
+      body: JSON.stringify({ roomId, hostId, x, y, phase }),
+    }),
 };

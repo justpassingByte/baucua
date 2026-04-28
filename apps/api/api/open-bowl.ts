@@ -43,14 +43,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     room.status = 'RESULT';
     await redis.set(`room:${room.id.toUpperCase()}`, JSON.stringify(room), { ex: 86400 });
 
+    const diceResult = room.currentRound.diceResult || ['BAU', 'CUA', 'TOM'];
+
     // Broadcast bowl lifting to trigger open animation on all clients
-    await broadcast(room.id, 'bowl_lifting', { status: 'RESULT' });
+    await broadcast(room.id, 'bowl_lifting', {
+      diceResult,
+      openedAt: Date.now(),
+      status: 'RESULT',
+    });
 
     // Send the final results so players see their payouts
     await broadcast(room.id, 'round_ended', {
       payouts: room.currentRound.payouts || {},
       players: room.players,
-      diceResult: room.currentRound.diceResult || ['BAU', 'CUA', 'TOM'],
+      diceResult,
       status: 'RESULT',
     });
 

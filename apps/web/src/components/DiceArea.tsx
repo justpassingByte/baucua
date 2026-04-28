@@ -15,10 +15,19 @@ const SYMBOL_IMAGE: Record<Symbol, string> = {
 
 interface Props {
   onLiftBowl?: () => void;
+  onBowlDragSync?: (drag: BowlDragSync) => void;
   isBowlLifting?: boolean;
+  syncedBowlDrag?: BowlDragSync | null;
 }
 
-export default function DiceArea({ onLiftBowl, isBowlLifting }: Props) {
+type BowlDragSync = {
+  x: number;
+  y: number;
+  phase: 'dragging' | 'idle';
+  updatedAt?: number;
+};
+
+export default function DiceArea({ onLiftBowl, onBowlDragSync, isBowlLifting, syncedBowlDrag }: Props) {
   const { isRolling, diceResult, room, isHost } = useGameStore();
   const status = room?.status;
 
@@ -32,22 +41,50 @@ export default function DiceArea({ onLiftBowl, isBowlLifting }: Props) {
       bowlDragX.set(0);
       bowlDragY.set(0);
     }
-  }, [status, bowlDragY]);
+  }, [status, bowlDragX, bowlDragY]);
+
+  const showBowl = status === 'WAITING' || status === 'BETTING' || status === 'ROLLING' || status === 'REVEAL' || status === 'RESULT';
+  const canDrag = isHost && status === 'REVEAL' && !liftTriggered && !isBowlLifting;
+  const bowlOpen = liftTriggered || !!isBowlLifting || status === 'RESULT';
+
+  useEffect(() => {
+    if (isHost || !syncedBowlDrag || status !== 'REVEAL' || bowlOpen) return;
+
+    if (syncedBowlDrag.phase === 'idle') {
+      bowlDragX.set(0);
+      bowlDragY.set(0);
+      return;
+    }
+
+    bowlDragX.set(syncedBowlDrag.x);
+    bowlDragY.set(syncedBowlDrag.y);
+  }, [bowlDragX, bowlDragY, bowlOpen, isHost, status, syncedBowlDrag]);
+
+  const handleDrag = (_: any, info: { offset: { x: number; y: number } }) => {
+    if (!canDrag) return;
+    onBowlDragSync?.({
+      x: info.offset.x,
+      y: info.offset.y,
+      phase: 'dragging',
+    });
+  };
 
   const handleDragEnd = (_: any, info: { offset: { x: number; y: number } }) => {
     const dist = Math.sqrt(info.offset.x ** 2 + info.offset.y ** 2);
     if (dist > 78 && !liftTriggered && onLiftBowl) {
+      onBowlDragSync?.({
+        x: info.offset.x,
+        y: info.offset.y,
+        phase: 'dragging',
+      });
       setLiftTriggered(true);
       onLiftBowl();
       return;
     }
+    onBowlDragSync?.({ x: 0, y: 0, phase: 'idle' });
     bowlDragX.set(0);
     bowlDragY.set(0);
   };
-
-  const showBowl = status === 'WAITING' || status === 'BETTING' || status === 'ROLLING' || status === 'REVEAL' || status === 'RESULT';
-  const canDrag = isHost && status === 'REVEAL' && !liftTriggered;
-  const bowlOpen = liftTriggered || (!!isBowlLifting && !isHost) || status === 'RESULT';
 
   return (
     <div className="dice-arena select-none">
@@ -108,6 +145,7 @@ export default function DiceArea({ onLiftBowl, isBowlLifting }: Props) {
                     drag={canDrag}
                     dragConstraints={{ top: -300, bottom: 300, left: -300, right: 300 }}
                     dragElastic={0.22}
+                    onDrag={handleDrag}
                     onDragEnd={handleDragEnd}
                     whileDrag={{ scale: 1.05 }}
                   >

@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
@@ -15,6 +15,13 @@ import DiceHistory from './DiceHistory';
 import { playSfx } from '../lib/sfx';
 import type { Bet, Player, Symbol, RoundData } from '../store/gameStore';
 
+type BowlDragSync = {
+  x: number;
+  y: number;
+  phase: 'dragging' | 'idle';
+  updatedAt?: number;
+};
+
 export default function GameRoom() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
@@ -22,7 +29,9 @@ export default function GameRoom() {
 
   // Bowl lift state synced via Pusher for all clients
   const [isBowlLifting, setIsBowlLifting] = useState(false);
+  const [syncedBowlDrag, setSyncedBowlDrag] = useState<BowlDragSync | null>(null);
   const [betNotice, setBetNotice] = useState<string | null>(null);
+  const lastBowlSyncSentAt = useRef(0);
 
   // ─── Load room on mount ──────────────────────────────
   useEffect(() => {
@@ -33,6 +42,9 @@ export default function GameRoom() {
         if (res.success && res.data) {
           const { room } = res.data as any;
           store.setRoom(room);
+          if (room.currentRound?.diceResult && (room.status === 'REVEAL' || room.status === 'RESULT')) {
+            store.setDiceResult(room.currentRound.diceResult);
+          }
           if (!store.playerId) {
             navigate('/');
           }
@@ -90,6 +102,7 @@ export default function GameRoom() {
       store.setIsRolling(false);
       store.setLastPayouts(null);
       setIsBowlLifting(false);
+      setSyncedBowlDrag(null);
       setBetNotice(null);
     });
 
@@ -109,11 +122,32 @@ export default function GameRoom() {
       store.setIsRolling(true);
       store.updateStatus('ROLLING');
       setIsBowlLifting(false);
+      setSyncedBowlDrag(null);
       playSfx('rolling', 0.35);
     });
 
-    // New event: bowl is being lifted by host — animate for all players
-    channel.bind('bowl_lifting', () => {
+    channel.bind('bowl_sync', (data: BowlDragSync & { diceResult?: [Symbol, Symbol, Symbol] | null }) => {
+      if (data.diceResult) {
+        store.setDiceResult(data.diceResult);
+      }
+      setSyncedBowlDrag({
+        x: data.phase === 'idle' ? 0 : data.x,
+        y: data.phase === 'idle' ? 0 : data.y,
+        phase: data.phase,
+        updatedAt: data.updatedAt,
+      });
+    });
+
+    // New event: bowl is being lifted by host — animate for all clients
+    channel.bind('bowl_lifting', (data?: { diceResult?: [Symbol, Symbol, Symbol] }) => {
+      if (data?.diceResult) {
+        store.setDiceResult(data.diceResult);
+      }
+      store.setIsRolling(false);
+      if (useGameStore.getState().room?.status !== 'RESULT') {
+        store.updateStatus('REVEAL');
+      }
+      setSyncedBowlDrag(null);
       setIsBowlLifting(true);
     });
 
@@ -134,8 +168,17 @@ export default function GameRoom() {
       console.log('[round_ended] Received payouts:', JSON.stringify(data.payouts));
       console.log('[round_ended] My playerId:', store.playerId);
       console.log('[round_ended] My payout entry:', store.playerId ? data.payouts[store.playerId] : 'N/A');
+
+      store.setDiceResult(data.diceResult);
+      store.setIsRolling(false);
+      if (useGameStore.getState().room?.status !== 'RESULT') {
+        store.updateStatus('REVEAL');
+      }
+      setSyncedBowlDrag(null);
+      setIsBowlLifting(true);
       
       setTimeout(() => {
+        store.setDiceResult(data.diceResult);
         store.setLastPayouts(data.payouts);
         store.updatePlayers(data.players);
         store.updateStatus('RESULT');
@@ -176,6 +219,19 @@ export default function GameRoom() {
     if (!store.room || !store.playerId || !store.isHost) return;
     await api.openBowl(store.room.id, store.playerId);
   }, [store.room, store.playerId, store.isHost]);
+
+  const handleBowlDragSync = useCallback((drag: BowlDragSync) => {
+    const state = useGameStore.getState();
+    if (!state.room || !state.playerId || !state.isHost) return;
+
+    const now = Date.now();
+    if (drag.phase === 'dragging' && now - lastBowlSyncSentAt.current < 80) return;
+
+    lastBowlSyncSentAt.current = now;
+    api.syncBowl(state.room.id, state.playerId, drag.x, drag.y, drag.phase).catch((error) => {
+      console.error('Bowl sync failed:', error);
+    });
+  }, []);
 
   if (!store.room) {
     return (
@@ -227,7 +283,9 @@ export default function GameRoom() {
               <div className="flex-[1.2] rounded-2xl border border-white/10 bg-[#f4efe4]/5 p-2 sm:p-3 relative z-10 flex flex-col items-center justify-center min-h-[180px]">
                 <DiceArea
                   onLiftBowl={store.isHost ? handleLiftBowl : undefined}
+                  onBowlDragSync={store.isHost ? handleBowlDragSync : undefined}
                   isBowlLifting={isBowlLifting}
+                  syncedBowlDrag={syncedBowlDrag}
                 />
               </div>
 
@@ -246,7 +304,10 @@ export default function GameRoom() {
               </AnimatePresence>
 
               <div className="flex-none sm:flex-1 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-2 sm:p-3 min-h-[300px] sm:min-h-0 flex flex-col">
-                <BettingGrid onNoticeChange={setBetNotice} />
+                <BettingGrid
+                  onNoticeChange={setBetNotice}
+                  showResultMultipliers={isBowlLifting || status === 'RESULT'}
+                />
               </div>
             </div>
           </section>
